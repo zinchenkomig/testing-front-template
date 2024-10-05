@@ -1,0 +1,45 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      -
+        name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: cr.yandex
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      -
+        name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: cr.yandex/crp6fqsjle6nrluiklb6/common/frontend:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v1
+      - name: deploy
+        uses: 'vimeda/helm@v1.7.0'
+        with:
+          release: 'front-template-front'
+          namespace: 'default'
+          chart: 'k8s/front-app'
+          token: '${{ github.token }}'
+        env:
+          KUBECONFIG_FILE: '${{ secrets.KUBECONFIG }}'
